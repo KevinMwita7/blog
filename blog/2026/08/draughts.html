@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hello, world — Kevin Babu</title>
+    <link rel="stylesheet" href="../../../style.css" />
+  </head>
+  <body>
+    <header>
+      <h1><a href="../../../index.html">Kevin Babu</a></h1>
+      <nav>
+        <a href="../../../index.html">Home</a>
+        <a href="../../index.html">Blog</a>
+      </nav>
+    </header>
+
+    <main>
+      <article>
+        <h1>Draughts, aka Checkers, Program</h1>
+
+        <h2>Introduction</h2>
+
+        <p>
+          One of the very first games I ever played was <a href="https://en.wikipedia.org/wiki/Checkers" target="_blank">draughts, aka checkers</a>.
+          I remember drawing a draughts board in one of my books back in primary school and using pieces of paper
+          as the men/kings. I still play it from time to time and it's the only game I currently have installed on my mobile phone.
+          Never thought about doing my own implementation until I came to know of 
+          <a href="https://en.wikipedia.org/wiki/Arthur_Samuel_(computer_scientist)" target="_blank">Arthur Samuel</a>. He had the ingenious idea
+          to teach computers how to play games and then use the observations to solve other problems. He ended up choosing
+          draughts because it was simpler than chess, yet complicated enough to study how a computer could self learn
+          and improve over time. This seemed like an interesting premise and I wanted to try and clone his original self-learning program. This post
+          is a documentation of what I was able to achieve. Reference code can be found <a href="https://github.com/KevinMwita7/draughts" target="_blank">here</a>.
+        </p>
+
+        <h2>Game Logic</h2>
+        <p>For the computer to be able to play against itself and learn, it would need a game environment. 
+          This is what we'll be tackling in this section, starting with the board.
+        </p>
+
+        <h3>The Board</h3>
+        <p>The instinctive way of representing a 2D board game is by using 2D arrays to model the rows and columns.
+          This is a good enough approach, but not suitable for this case. The computer will need to play multiple games and
+          perform multiple moves when searching for a best move. Iterating over the 2D array would be rather slow for this
+          and a better approach was warranted. My research online led to <a href="https://3dkingdoms.com/checkers/bitboards.htm" target="_blank">bitboards</a>.
+        <p>
+          Bitboards use bits to represent positions on the board, with occupied positions being marked with 1 and empty pieces with 0.
+          A typical draughts board has 64 squares, but only 32 bits are needed to represent it programmatically. This is because only the
+          valid squares are considered in the implementation. There'll be 4 bitboards in total, 1 for each piece-kind 
+          (1 for black men, 1 for white men, 1 for black kings and 1 for white kings). Below is the state of the 4 bitboards at the start of the game:
+        </p>
+        <ul>
+          <li>Black Men: 0000 0000 0000 0000 0000 1111 1111 1111 or 0x00000FFF: all black men are at rank 1, 2 and 3 at start of game</li>
+          <li>White Men: 1111 1111 1111 0000 0000 0000 0000 0000 or 0xFFF00000: all white men are at rank 8, 7 and 6 at start of game</li>
+          <li>Black Kings: 0000 0000 0000 0000 0000 0000 0000 0000: no black kings at start of game</li>
+          <li>Ditto for white kings bitboard</li>
+        </ul>
+        <p>
+          The board state can then be derived via bitwise operations. Quick primer on some of the bitwise operators:
+        </p>
+        <ul>
+          <li>OR (|) - 1 if either or both bits are 1, 0 if neither are 1. Kind of like the usual OR (||)</li>
+        </ul>
+      </article>
+    </main>
+
+    <footer>
+      <p><a href="../../index.html">&larr; Back to all posts</a></p>
+    </footer>
+  </body>
+</html>
