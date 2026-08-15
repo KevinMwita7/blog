@@ -50,16 +50,16 @@
           (1 for black men, 1 for white men, 1 for black kings and 1 for white kings). Below is the state of the 4 bitboards at the start of the game:
         </p>
         <ul>
-          <li>Black Men: 0000 0000 0000 0000 0000 1111 1111 1111 or 0x00000FFF: all black men are at rank 1, 2 and 3 at start of game</li>
-          <li>White Men: 1111 1111 1111 0000 0000 0000 0000 0000 or 0xFFF00000: all white men are at rank 8, 7 and 6 at start of game</li>
-          <li>Black Kings: 0000 0000 0000 0000 0000 0000 0000 0000: no black kings at start of game</li>
+          <li>Black Men: <code>0000 0000 0000 0000 0000 1111 1111 1111</code> or <code>0x00000FFF</code>: all black men are at rank 1, 2 and 3 at start of game</li>
+          <li>White Men: <code>1111 1111 1111 0000 0000 0000 0000 0000</code> or <code>0xFFF00000</code>: all white men are at rank 8, 7 and 6 at start of game</li>
+          <li>Black Kings: <code>0000 0000 0000 0000 0000 0000 0000 0000</code>: no black kings at start of game</li>
           <li>Ditto for white kings bitboard</li>
         </ul>
         <p>
           The board state can then be derived via bitwise operations. Quick primer on some of the bitwise operators:
         </p>
         <ul>
-          <li>OR (|) - 1 if either or both bits are 1, 0 if neither are 1. Kind of like the usual OR (||)</li>
+          <li>OR (|) - <code>1</code> if either or both bits are <code>1</code>, <code>0</code> if neither are <code>1</code>. Kind of like the usual OR (||)</li>
         </ul>
       </article>
     </main>
