@@ -3,8 +3,31 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hello, world — Kevin Babu</title>
+    <title>Draughts Mechanics — Kevin Babu</title>
     <link rel="stylesheet" href="../../../style.css" />
+    <style>
+      .tree-diagram {
+        margin: 1.75em 0;
+      }
+      .tree-diagram svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+      .tree-diagram figcaption {
+        margin-top: 0.75em;
+        color: var(--muted);
+        font-size: 0.85em;
+        line-height: 1.5;
+      }
+      .screenshot {
+        display: block;
+        margin: 1.75em auto;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+      }
+    </style>
   </head>
   <body>
     <header>
@@ -19,48 +42,1633 @@
       <article>
         <h1>Draughts, aka Checkers, Program</h1>
 
-        <h2>Introduction</h2>
+        <div id="intro">
+          <h2>Introduction</h2>
 
-        <p>
-          One of the very first games I ever played was <a href="https://en.wikipedia.org/wiki/Checkers" target="_blank">draughts, aka checkers</a>.
-          I remember drawing a draughts board in one of my books back in primary school and using pieces of paper
-          as the men/kings. I still play it from time to time and it's the only game I currently have installed on my mobile phone.
-          Never thought about doing my own implementation until I came to know of 
-          <a href="https://en.wikipedia.org/wiki/Arthur_Samuel_(computer_scientist)" target="_blank">Arthur Samuel</a>. He had the ingenious idea
-          to teach computers how to play games and then use the observations to solve other problems. He ended up choosing
-          draughts because it was simpler than chess, yet complicated enough to study how a computer could self learn
-          and improve over time. This seemed like an interesting premise and I wanted to try and clone his original self-learning program. This post
-          is a documentation of what I was able to achieve. Reference code can be found <a href="https://github.com/KevinMwita7/draughts" target="_blank">here</a>.
-        </p>
+          <p>
+            One of the very first games I ever played was
+            <a href="https://en.wikipedia.org/wiki/Checkers" target="_blank"
+              >draughts, aka checkers</a
+            >. I remember drawing a draughts board in one of my books back in
+            primary school and using pieces of paper as the men/kings. I still
+            play it from time to time and it's the only game I currently have
+            installed on my mobile phone. Never thought about doing my own
+            implementation until I came to know of
+            <a
+              href="https://en.wikipedia.org/wiki/Arthur_Samuel_(computer_scientist)"
+              target="_blank"
+              >Arthur Samuel</a
+            >. He had the ingenious idea to teach computers how to play games
+            and then use the observations to solve other problems. He ended up
+            choosing draughts because it was simpler than chess, yet complicated
+            enough to study how a computer could self learn and improve over
+            time. This seemed like an interesting premise and I wanted to try
+            and clone his original self-learning program. This post is a
+            documentation of what I was able to achieve.
+          </p>
+          <p>
+            Reference
+            <a href="https://github.com/KevinMwita7/draughts" target="_blank"
+              >code</a
+            >
+            can be found on GitHub, <a href="#glossary">glossary</a> section is
+            at the end of this article.
+          </p>
+        </div>
 
-        <h2>Game Logic</h2>
-        <p>For the computer to be able to play against itself and learn, it would need a game environment. 
-          This is what we'll be tackling in this section, starting with the board.
-        </p>
+        <div id="bitwise-ops">
+          <h2>Quick Primer on Bitwise Operators</h2>
+          <p>
+            Bitwise operations will be used throughout the codebase to derive
+            the game state. Below is a quick overview:
+          </p>
+          <ul>
+            <li>
+              OR (|) - result is <code>1</code> if either or both bits is
+              <code>1</code>, <code>0</code> if both are <code>0</code>
+            </li>
+            <li>
+              AND (&) - result is <code>1</code> if both bits are 1,
+              <code>0</code> if either is <code>0</code>
+            </li>
+            <li>
+              NOT (~) - flips bit to <code>1</code> if was <code>0</code> and to
+              <code>0</code> if was <code>1</code>
+            </li>
+            <li>
+              XOR (^) - stands for exclusive OR. Result is 1 when the bits
+              differ and 0 when they're the same
+            </li>
+            <li>
+              Left Shift (&lt;&lt;) - shifts bits to the left by the specified
+              step, pads right with zeros
+            </li>
+            <li>
+              Right Shift (&gt;&gt;) - shifts bits to the right by the specified
+              step, pads left with zeros
+            </li>
+          </ul>
+        </div>
 
-        <h3>The Board</h3>
-        <p>The instinctive way of representing a 2D board game is by using 2D arrays to model the rows and columns.
-          This is a good enough approach, but not suitable for this case. The computer will need to play multiple games and
-          perform multiple moves when searching for a best move. Iterating over the 2D array would be rather slow for this
-          and a better approach was warranted. My research online led to <a href="https://3dkingdoms.com/checkers/bitboards.htm" target="_blank">bitboards</a>.
-        <p>
-          Bitboards use bits to represent positions on the board, with occupied positions being marked with 1 and empty pieces with 0.
-          A typical draughts board has 64 squares, but only 32 bits are needed to represent it programmatically. This is because only the
-          valid squares are considered in the implementation. There'll be 4 bitboards in total, 1 for each piece-kind 
-          (1 for black men, 1 for white men, 1 for black kings and 1 for white kings). Below is the state of the 4 bitboards at the start of the game:
-        </p>
-        <ul>
-          <li>Black Men: <code>0000 0000 0000 0000 0000 1111 1111 1111</code> or <code>0x00000FFF</code>: all black men are at rank 1, 2 and 3 at start of game</li>
-          <li>White Men: <code>1111 1111 1111 0000 0000 0000 0000 0000</code> or <code>0xFFF00000</code>: all white men are at rank 8, 7 and 6 at start of game</li>
-          <li>Black Kings: <code>0000 0000 0000 0000 0000 0000 0000 0000</code>: no black kings at start of game</li>
-          <li>Ditto for white kings bitboard</li>
-        </ul>
-        <p>
-          The board state can then be derived via bitwise operations. Quick primer on some of the bitwise operators:
-        </p>
-        <ul>
-          <li>OR (|) - <code>1</code> if either or both bits are <code>1</code>, <code>0</code> if neither are <code>1</code>. Kind of like the usual OR (||)</li>
-        </ul>
+        <div id="game-logic">
+          <h2>Game Logic</h2>
+          <p>
+            For the computer to be able to play against itself and learn, it
+            would need a game environment. This is what we'll be tackling in
+            this section, starting with the game state.
+          </p>
+
+          <div id="game-state">
+            <h3>Game State</h3>
+            <p>
+              Is modelled by
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/position.h"
+                target="_blank"
+                >position.h</a
+              >
+              and
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/src/position.cpp"
+                >position.cpp</a
+              >.
+            </p>
+            <p>
+              The instinctive way of representing a 2D board game is by using 2D
+              arrays to model the rows and columns. This is a good enough
+              approach, but not suitable for this case. The computer will need
+              to play multiple games and perform multiple moves when searching
+              for a best move. Iterating over the 2D array would be rather slow
+              for this and therefore a better approach was warranted. My
+              research online led to
+              <a
+                href="https://3dkingdoms.com/checkers/bitboards.htm"
+                target="_blank"
+                >bitboards</a
+              >.
+            </p>
+
+            <p>
+              Bitboards use bits to represent positions on the board, with
+              occupied cells being marked with <code>1</code> and empty cells
+              with <code>0</code>. A typical draughts board has 64 squares,
+              however, a bitboard only needs 32 bits. This is because only the
+              valid squares are considered in the implementation.
+            </p>
+            <p>
+              There'll be 4 bitboards to hold the pieces, 1 for each piece-kind
+              (1 for black men, 1 for white men, 1 for black kings and 1 for
+              white kings). Below is the state of the 4 bitboards at the start
+              of the game:
+            </p>
+            <ul>
+              <li>
+                Black Men:
+                <code>0000 0000 0000 0000 0000 1111 1111 1111</code> or
+                <code>0x00000FFF</code>: all black men are at rank 1, 2 and 3 at
+                the start of the game
+                <table class="codebox" border="1">
+                  <tbody>
+                    <tr>
+                      <td>
+                        <pre>
+  0   0   0   0
+0   0   0   0
+  0   0   0   0
+0   0   0   0
+  0   0   0   0
+1   1   1   1
+  1   1   1   1
+1   1   1   1</pre
+                        >
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </li>
+              <li>
+                White Men:
+                <code>1111 1111 1111 0000 0000 0000 0000 0000</code> or
+                <code>0xFFF00000</code>: all white men are at rank 8, 7 and 6 at
+                the start of game
+                <table class="codebox" border="1">
+                  <tbody>
+                    <tr>
+                      <td>
+                        <pre>
+  1   1   1   1
+1   1   1   1
+  1   1   1   1
+0   0   0   0
+  0   0   0   0
+0   0   0   0
+  0   0   0   0
+0   0   0   0</pre
+                        >
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </li>
+              <li>
+                Both Kings:
+                <code>0000 0000 0000 0000 0000 0000 0000 0000</code>: no kings
+                at start of game
+                <table class="codebox" border="1">
+                  <tbody>
+                    <tr>
+                      <td>
+                        <pre>
+  0   0   0   0
+0   0   0   0
+  0   0   0   0
+0   0   0   0
+  0   0   0   0
+0   0   0   0
+  0   0   0   0
+0   0   0   0</pre
+                        >
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </li>
+            </ul>
+            <p>
+              These 4 boards are stored in position.h in the 2D array bb, with
+              the rows representing Color and the columns PieceKinds. So bb<code
+                >[0]</code
+              >
+              holds black pieces, bb<code>[0][0]</code> black men and bb<code
+                >[0][1]</code
+              >
+              black kings. White pieces are bb<code>[1]</code>, white men
+              bb<code>[1][0]</code> and white kings <code>[1][1]</code>.
+            </p>
+            <p>
+              The game state can then be derived by using bitwise operations,
+              for example, all bitboards can be ORed to get the occupied squares
+              i.e. BlackMen | BlackKings | WhiteMen | WhiteKings = occupied.
+              Empty squares = ~occupied.
+            </p>
+            <p>
+              The game state uses
+              <a
+                href="https://en.wikipedia.org/wiki/Transposition_table"
+                target="_blank"
+                >transposition tables</a
+              >
+              with
+              <a
+                href="https://en.wikipedia.org/wiki/Zobrist_hashing"
+                target="_blank"
+                >zobrist hash</a
+              >
+              as a played position cache. At the start of the game, the keys for
+              each possible piece that could be on a square are initialized with
+              random values, hence the 32 x 4 PIECE_KEY array (32 squares which
+              might be occupied by any of the 4 color x piece combo).
+              Additionally, a random value is also generated for the side key to
+              keep track of which side made the move. To compute a position
+              hash, first the side key is XORed into hash (only done if side to
+              move is white since BLACK contributes <code>0</code> and XOR-ing
+              on WHITE alone is enough to distinguish the two side-to-move
+              states). Then for each occupied square, grab the random value that
+              was generated at start of the game and XOR them to the hash too.
+              The search result for that position is then stored into the
+              transposition table with the computed hash as key. The underlying
+              data structure that the transposition table uses is a vector. So
+              given a hash, the destination index has to be derived.
+            </p>
+            <p>
+              To store an entry, the appropriate index has to be derived from
+              the hash. The transposition table has an underlying vector with a
+              size (n_entries) rounded up to the nearest power of two by
+              <a href="https://en.cppreference.com/cpp/numeric/bit_ceil"
+                >std::bit_ceil</a
+              >. A mask is derived by subtracting <code>1</code> from n_entries.
+              ANDing the hash with the mask is similar to hash % n_entries,
+              which gives the appropriate index to use. This trick only works
+              for powers of 2 because substracting one from a power of 2 results
+              in a binary value with all bits on. Trying this on a
+              non-power-of-2 won't have the same effect. When saving the entry,
+              collision key has to be generated. This is done by right shifting
+              the hash by 32 bits, thus discarding the lower 32 bits and leaving
+              the upper 32 bits shifted down into the low half. The result is
+              then truncated to 32 bits by static_cast&lt;uint32_t&gt;. The
+              result will then be used as to identify collisions (different
+              positions mapped to the same bucket). If the stored entry belongs
+              to a different position (a true collision), it is always
+              overwritten and if it belongs to the same position, it's only
+              overwritten when the entry is from a different (older) generation
+              or is not stored at a strictly greater depth than the new one.
+            </p>
+          </div>
+          <div id="movegen">
+            <h3>Move Generation</h3>
+            <p>
+              Next is how moves are generated (modelled by
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/movegen.h"
+                target="_blank"
+                >movegen.h</a
+              >/<a
+                href="https://github.com/KevinMwita7/draughts/blob/main/src/movegen.cpp"
+                target="_blank"
+                >movegen.cpp</a
+              >
+              and
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/position.h"
+                target="_blank"
+                >position.h</a
+              >/<a
+                href="https://github.com/KevinMwita7/draughts/blob/main/src/position.cpp"
+                target="_blank"
+                >position.cpp</a
+              >).
+            </p>
+            <p>
+              movegen.h declares the struct MoveList which will hold moves
+              generated for a certain position. The struct contains the
+              following properties and methods:
+            </p>
+            <ul>
+              <li>
+                moves - an array that acts as the underlying container and has a
+                maximum size of 64.
+              </li>
+              <li>count - keeps track of elements in the moves array.</li>
+              <li>
+                push - adds an element to the moves array and increments the
+                count. See
+                <a
+                  href="https://www.geeksforgeeks.org/cpp/pre-increment-and-post-increment-in-c/"
+                  target="_blank"
+                  >post-increment</a
+                >
+              </li>
+              <li>
+                clear - resets count to <code>0</code> effectively overwriting
+                data on fresh pushes.
+              </li>
+              <li>empty - checks if moves list is empty.</li>
+              <li>
+                begin - returns pointer to first element in the moves array. Its
+                const counterpart returns the constant to pointer variant that
+                doesn't allow the data being pointed to being edit.
+              </li>
+              <li>
+                end - uses
+                <a
+                  href="https://www.geeksforgeeks.org/c/pointer-arithmetics-in-c-with-examples/"
+                  target="_blank"
+                  >pointer arithmetic</a
+                >
+                to return a pointer one past the last populated element in the
+                moves list, matching standard C++ iterator convention. The const
+                variant returns the constant to pointer equivalent.
+              </li>
+              <li>
+                operator[] - overrides the subscripting operator allowing
+                MoveList[i] operations. The const counterpart doesn't allow
+                updates of the memory location.
+              </li>
+            </ul>
+            <p>
+              movegen.cpp defines a recursive static capture_from function that
+              helps generate captures. It initializes the appropriate promotion
+              back rank depending on the piece Color. It then uses the helper
+              sq_bb function to create a bitboard with only the current piece
+              populated. If the current piece isn't already a king and has
+              reached promo rank, add that move to MoveList if there were any
+              captures with promotion set to true and return since no further
+              jump's available. capture_from then defines a try_jump lambda
+              function that aids in finding and executing captures. It does the
+              following:
+              <span>
+                <ul>
+                  <li>returns if no enemy exists in adjacent squares.</li>
+                  <li>
+                    returns if enemy exists in adjacent square but square where
+                    piece would land after jumping is not empty.
+                  </li>
+                  <li>
+                    recursively attempt further captures, removing the jumped
+                    piece from enemy's bitboard (enemy & ~mid_bb), updating
+                    empty_bb to include the vacated origin/mid squares
+                    (excluding the new landing square) and updating the captured
+                    pieces bitboard.
+                  </li>
+                </ul>
+              </span>
+              If piece is king or is black: generate middle square to jump and
+              square to land for both diagonally upper left and right squares
+              and attempt the jump (and vice versa for white pieces). Finally,
+              the base condition adds the move to list if no continuation exists
+              and there is a capture.
+            </p>
+            <p>
+              generate_captures function searches the game for any available
+              captures. It initializes the current player's Color and the enemy,
+              empty and current player's piece bitboards. While there are still
+              men on the current player's bitboard, take next man and generate
+              captures for them using capture_from. It then gets the current
+              player's king bitboard and generates captures for it too.
+            </p>
+            <p>
+              generate_quiets function looks for moves that don't result in a
+              capture. It first initializes the current player Color and the
+              men, kings, empty squares and promo rank bitboards. It then
+              declares the FwdFn alias that takes in a bitboard and returns a
+              square. Additionally, it declares the emit lambda function that
+              populates the MoveList with possible destination squares. If
+              current side is black then call emit twice:
+              <span>
+                <ul>
+                  <li>
+                    first call passes in the first argument as the bitboard with
+                    valid destinations obtained by shifting the pieces up
+                    diagonally then ANDing with empty squares. The second
+                    argument is true since the pieces are men and third argument
+                    defines the FwdFn function that reverses the move and then
+                    returns the original square the subject piece occupied. The
+                    second call to emit gets valid diagonally up left
+                    destinations for the men.
+                  </li>
+                  <li>above is done but in reverse for white men.</li>
+                  <li>
+                    quiet moves in all diagonal directions are then generated
+                    for all Kings.
+                  </li>
+                </ul>
+              </span>
+            </p>
+            <p>
+              generate_moves then prioritizes captures if any, else, generate
+              quiets.
+            </p>
+            <p>
+              has_legal_moves is used to determine if a Position has any valid
+              moves. It returns true if there are any valid jumps as determined
+              by the helper has_captures function (checks to see if a piece has
+              an enemy it can jump over and whether it'll land on a valid square
+              if it does). If no jumps exist, it checks whether there any valid
+              neighbouring squares it can move to.
+            </p>
+            <p>
+              Once a move has been generated, they can then be passed to do_move
+              in Position for execution. To execute the move, the current
+              Color's turn is first determined (the opponent will be the
+              opposite). Then the PieceKind is determined by checking whether
+              it's in the kings bitboard or not. The number of previous moves
+              without a capture is recorded and the captured kings bitboard
+              (useful when updating the zobrist hash) is extracted. The zobrist
+              hash is then updated by XORing the current piece's key into it.
+              Additionally, the zobrist hash is updated with the keys of the
+              captured pieces by looping through the captured pieces bitboards
+              and XORing the keys into the hash. Then, the key of the piece's
+              final destination is XORed in, using KING instead of the original
+              kind if the move was a promotion. Then the current side's turn key
+              is XORed into the zobrist hash. Next comes the board updates. The
+              from square bitboard is ORed with destination square bitboard and
+              the result XORed with the current players bitboard. This removes
+              the piece from the origin square and places it on the target
+              square. Then, the opponent's captured bitboard is NOTed and the
+              result ANDed with their current men bitboard resulting in only the
+              non-captured bitboards remaining on the game. The same is repeated
+              with the opponent's captured bitboard and their current kings
+              bitboard to updated the opponent's kings bitboard. These two
+              operations are safe to perform simultaneously because any given
+              captured square belongs to exactly one of the opponent's two piece
+              bitboards (a square can't simultaneously hold an enemy man and an
+              enemy king). If the piece got promoted, remove it from the piece's
+              bitboard by negating said bitboard and ANDing the result with the
+              men bitboard. OR the sole moving piece bitboard into kings
+              bitboard to update the current player's kings bitboard. The
+              occupied squares bitboard is updated by ORing all the four piece
+              bitboards together (black men | black kings | white men | white
+              kings), and then NOT the result to get the non-occupied squares.
+              The side_to_move is updated to the opponent as its now their turn,
+              the ply incremented and reversible reset if there was captured or
+              incremented if none.
+            </p>
+            <p>
+              Undoing a move is basically the reverse. The current player and
+              the opponent are the opposite of what they were when move was
+              executed. The current PieceKind after move was made is a king if
+              the move was a promotion, else, the it's a king if it's was in the
+              previous side_to_move king bitboard and a man otherwise. The
+              original PieceKind before a move was made is determined to be a
+              man if said move was a promotion, and the current PieceKind if
+              not. The hash is then reversed to state before move was performed
+              by XORing it with the key piece key in destination square
+              (opposite of from square in do_move). Captured pieces bitboard
+              from the move to reverse are retrieved and for each piece in the
+              bitboard, extract it, determine its kind by checking if it's in
+              the captured kings bitboard or not and then XORing the piece with
+              the hash to restore the hash before the piece was captured. Hash
+              is then XORed with the piece's original square and then the
+              SIDE_KEY, resetting it to original state before move. Piece is
+              removed from the king board and placed onto the men's bitboard if
+              the move resulted in promotion. The destination square and from
+              square bitboards are ORed together, resulting in a bitboard with
+              both from and to square populated. This bitboard is then XORed
+              with the mover's bitboard, leading to only the from square
+              persisting in the mover's bitboard. Captured kings bitboard is
+              then ORed with the opponent's kings bitboard, undoing
+              <code>bb[them][KING] &= ~m.captured</code> from do_move, leading
+              to any captured kings being restored. Captured men are obtained by
+              ANDing all captured pieces board with the complement of the
+              captured kings board i.e. captured pieces with kings excluded.
+              Result is then ORed into the opponents board, restoring the
+              original state before capture. Currently occupied squares are
+              constructed by ORing the men and kings bitboard of all Colors.
+              Empty squares will then be result of ~occupied. Side to move is
+              set to previous move's Color, ply decremented and reversible count
+              set to count before move.
+            </p>
+          </div>
+          <div id="notation">
+            <h3>Position Notation</h3>
+            <p>
+              The game needs a way to record the game state i.e. piece positions
+              and moves. Enter
+              <a
+                href="https://en.wikipedia.org/wiki/Portable_Draughts_Notation"
+                target="_blank"
+                >Portable Draughts Notation</a
+              >. From the notation, it's possible to know whose turn it is, the
+              piece positions on the board and the executed moves. Take for
+              example the PDN below:
+            </p>
+            <table class="codebox">
+              <tbody>
+                <tr>
+                  <td>
+                    <pre>
+[Event "Endgame Study"]
+[Black "A. Player"]
+[White "B. Player"]
+[SetUp "1"]
+[FEN "W:W18,22,25,29,K31:B6,10,K13,K17,21"]
+[Result "*"]
+
+1. 31-27 17x26 2. 25-22 26x17 3. 18-14 *</pre
+                    >
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p>The above notation's header can then be interpreted as:</p>
+            <ul>
+              <li>[Event "Endgame Study"] - the name of the match/event.</li>
+              <li>
+                [Black "A. Player"] - the player with the black pieces in
+                last-name first-name format.
+              </li>
+              <li>[White "B. Player"] - ditto for white.</li>
+              <li>
+                [SetUp "1"] - indicates
+                <a
+                  href="https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation"
+                  target="_blank"
+                  >FEN</a
+                >
+                is used.
+              </li>
+              <li>
+                Current board position
+                <code>W:W18,22,25,29,K31:B6,10,K13,K17,21</code> - the W at the
+                start means it's White's turn, the colon separates the
+                side_to_move from the positions. Then the W indicates all pieces
+                that follow until the next colon are white. The 'K' before a
+                piece indicates that the subject is a King. Same goes for black
+                pieces after the 2<sup>nd</sup>
+                colon.
+              </li>
+              <li>
+                [Result "*"] - outcome of the event. <code>1-0</code> if White
+                (or first-named side) won, <code>0-1</code> if Black won,
+                1/2-1/2 is a draw and * is unknown/ongoing/not recorded
+              </li>
+            </ul>
+            <p>
+              Then the moves executed so far follow. In this case, the moves
+              are:
+              <code>1. 31-27 17x26 2. 25-22 26x17 3. 18-14 *</code>. The moves
+              are numbered from 1., the '-' represents a quiet move from
+              original to destination square with no jumps, the 'x' represents a
+              move with a jump (17x26 is Black jumping White's man on 22,
+              landing on 26) and the trailing '*' the trailing * closes the
+              movetext and marks the result as unknown/ongoing, mirroring the
+              [Result "*"] tag. It's the same token that would be
+              <code>1-0, 0-1, or 1/2-1/2</code> if the game had concluded.
+            </p>
+            <p>
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/notation.h"
+                target="_blank"
+                >notation.h</a
+              >/<a
+                href="https://github.com/KevinMwita7/draughts/blob/main/src/notation.cpp"
+                target="_blank"
+                >notation.cpp</a
+              >
+              are responsible for PDN serialization and deserialization of moves
+              and positions. The engine uses parts of the PDN (the FEN-style
+              position string and the bare move tokens) in conjuction with the
+              <a
+                href="https://en.wikipedia.org/wiki/Universal_Chess_Interface"
+                target="_blank"
+                >UCI</a
+              >
+              (discussed in the protocol section) to implement behaviour.
+            </p>
+            <p>
+              The functions below are responbile for everything PDN related:
+            </p>
+            <ul>
+              <li>
+                parse_pdn_position - builds a Position from a FEN-styled
+                position string. It extracts the side_to_move first and then the
+                pieces, populating them in the relevant of the 4 bitboards.
+              </li>
+              <li>
+                to_pdn_position - constructs a FEN-styled position string from a
+                Position. It first appends the side_to_move and then a colon,
+                then 'W' to indicate white pieces follow, the White pieces
+                bitboards (kings then men) follow, colon delimiter is appended
+                next, then 'B' to indicate black pieces follow and finally the
+                Black pieces (kings followed by men).
+              </li>
+              <li>
+                parse_move - given a move string, it builds a Move, searches the
+                position's generated legal-move list for a from/to match and
+                returns the resulting Move. It scans the whole string and
+                collects every run of digits into an array, and then takes the
+                first number as from and the last number as to ignoring
+                whatever's in between. That matters for multi-jump captures like
+                <code>1x10x19</code>: the intermediate landing square
+                <code>10</code> is read but thrown away and only 1 &rarr; 19 is
+                used to match against the generated move list. It then checks
+                whether the generated move exists for the associated position,
+                returning it if so, and NULL_MOVE otherwise. This works because
+                generate_moves already produces a single Move object per full
+                jump sequence (from/to/captured-mask). Therefore, the parser
+                doesn't need the intermediate squares, it just needs endpoints.
+              </li>
+              <li>
+                move_to_string - makes a move string from a Move. Moves are
+                1-indexed, so 1 has to be added to the move indexes.
+              </li>
+              <li>
+                parse_pdn - parses the entire game moves list using the
+                parse_move function, advancing the Position move-by-move so each
+                subsequent parse_move call resolves against the correct board
+                state.
+              </li>
+            </ul>
+          </div>
+          <div id="perft">
+            <h3>Performance Test</h3>
+            <p>
+              In draughts, the node counts for standard starting positions at
+              each depth are already known. Therefore comparing the engine's
+              output against them catches move-generation bugs (missing
+              captures, wrong mandatory-capture handling, bad king move logic,
+              illegal moves slipping through, etc). This can be achieved via
+              <a href="https://chessprogramming.org/Perft" target="_blank"
+                >perft</a
+              >, a function that counts and reports the leaf nodes at a certain
+              depth, which can then be compared to the published references for
+              bug detection. Perft originated from chess developmenet and
+              traditionally served as a move-generator speed benchmark and a
+              correctness check but this engine only uses it for the latter.
+            </p>
+            <p id="perft-explainer">
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/perft.h"
+                target="_blank"
+                >perft.h</a
+              >/<a
+                href="https://github.com/KevinMwita7/draughts/blob/main/src/perft.cpp"
+                target="_blank"
+                >perft.cpp</a
+              >
+              are responsible for this in this implementation. perft does a
+              depth-first walk of the move tree, playing each legal move and
+              counting the nodes at each level recursively until it reaches the
+              leaf. It then walks back up the tree, summing the leaf counts at
+              each depth, and undoes the performed move. perft_divide does the
+              same but reports the count per root move in addition to the total.
+              Once the node count for a particular depth have been generated,
+              the developer or unit tests can compare this with the known
+              correct values. This is exactly what
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/test/perft.cpp"
+                target="_blank"
+                >test/perft.cpp</a
+              >
+              does:
+            </p>
+            <ul>
+              <li>
+                There is a test case for depths <code>0, 1, 2 and 3</code> and
+                the result compared against their known node counts i.e.
+                <code>
+                  perft(start_position, 0) == 1, perft(start_position, 1) == 7,
+                  depth 2 == 49, depth 3 == 302</code
+                >. These match the standard published perft sequence for
+                draughts <code>(7, 49, 302, 1469, …)</code>, so any
+                move-generation regression that shifts these numbers fails the
+                test immediately.
+              </li>
+              <li>
+                Targeted edge cases beyond raw counts: a terminal position (no
+                pieces for the side to move) returns <code>0</code> at any
+                depth, a forced-capture position returns exactly 1 leaf at depth
+                1 and <code>0</code>
+                at depth 2 (verifying mandatory captures are enforced, not just
+                counted).
+              </li>
+              <li>
+                Non-mutation check: a full test (DoesNotMutatePosition) asserts
+                every field of Position is bit-identical before and after a
+                depth-3 perft run, guarding the do_move/undo_move symmetry perft
+                relies on.
+              </li>
+              <li>
+                perft_divide gets its own suite: total matches plain perft, one
+                output line per root move, correct -/x separator per move type,
+                and the same non-mutation guarantee.
+              </li>
+            </ul>
+          </div>
+          <div id="search">
+            <h3>Best Move</h3>
+            <p>
+              To win the game, the engine has to be able to execute the best
+              move. The popular algorithm used to find such a move is the
+              <a
+                href="https://www.youtube.com/watch?v=l-hh51ncgDI"
+                target="_blank"
+                >minimax</a
+              >
+              algorithm. It takes advantage of the fact that draughts is a zero
+              sum game whereby one side's gain is the other side's loss.
+              Therefore, minimax picks the maximum score at the maximizing nodes
+              and the minimum score at the minimum nodes. This is because
+              maximizing nodes represent the player's turns while minimizing
+              nodes represents the opponent's turn. The maximizing and
+              minimizing nodes alternate at each depth, starting with maximizing
+              node at the root. However, this introduces complexity since
+              whether the type is maximizing or minimizing has to be tracked at
+              each level. Keeping track of the node type can be neutralized by
+              using
+              <a href="https://en.wikipedia.org/wiki/Negamax" target="_blank"
+                >negamax</a
+              >.
+            </p>
+            <p>
+              Negamax picks the negative of the maximum score at a node. This is
+              because the score of a player at a node favours that player as
+              much as it punishes the opponent. Allegorically, picture the score
+              of a basketball game not as two separate scores, but as a single
+              running margin: my points minus yours. When I hit a 3-pointer, my
+              margin goes up by 3. But watch that same shot from your side of
+              the court, your margin (your points minus mine) just went down by
+              3. Same shot, opposite sign, depending on whose scoreboard you're
+              reading. That's the whole trick behind negamax. Instead of one
+              player maximizing "my score" and the other minimizing "their
+              score," everyone just maximizes their own margin. The catch is
+              when it's my turn and I want to use the margin my opponent already
+              figured out for their next move, I have to flip its sign first,
+              since their +3 is my -3. That flip is the only extra step negamax
+              needs; otherwise both players run the exact same "maximize my
+              margin" logic.
+            </p>
+            <p>
+              The searching algorithm needs a way to know whether searching a
+              certain branch might result in a better move, or if said branch
+              can be safely ignored. That's where
+              <a
+                href="https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning"
+                target="_blank"
+                >alpha beta pruning</a
+              >
+              comes in. The name is derived from the two variables used to keep
+              track of the scores. Alpha keeps track of the minimum score that
+              the maximizing player is assured of, and beta, the maximum score
+              that the minimizing player is assured of. Negamax flips alpha and
+              beta at each level because the maximizing and minimizing players
+              alternate at each depth, and breaks the moment alpha >= beta. This
+              is because beta was handed down from the parent node as the best
+              result the opponent can already lock in elsewhere, before even
+              considering this branch. If any move here scores >= beta, then
+              playing into said position would hand the opponent a worse outcome
+              than a better one they can already guarantee themselves elsewhere.
+              So the opponent, one level up, would simply never choose the move
+              that leads into this node to begin with, meaning the rest of this
+              node's sibling moves are irrelevant to search further, since the
+              parent's decision is already settled regardless of what they'd
+              turn out to be. From a human's perspective and not the engine's,
+              alpha >= beta means that the current move being considered is not
+              necessarily the best move, but would hurt the opponent enough that
+              there's no need searching any further. The opponent would see this
+              too and try avoiding making their move that would enable this
+              damaging move to take place in the first place. The engine's main
+              assumption here is that the players will always make the best
+              move, which is not always the case.
+            </p>
+
+            <figure class="tree-diagram">
+              <svg
+                viewBox="25 0 680 420"
+                role="img"
+                aria-labelledby="ab-diagram-title ab-diagram-desc"
+              >
+                <title id="ab-diagram-title">Alpha-beta cutoff example</title>
+                <desc id="ab-diagram-desc">
+                  A game tree showing the opponent's root node with a left
+                  branch already searched to a value of 4, and a right node N
+                  still being searched. N's first move scores 6, which is
+                  already at least as good as the opponent's guaranteed 4, so
+                  N's remaining two moves are pruned and never searched.
+                </desc>
+
+                <!-- edges: root to children -->
+                <line
+                  x1="320"
+                  y1="50"
+                  x2="140"
+                  y2="190"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+                <line
+                  x1="320"
+                  y1="50"
+                  x2="500"
+                  y2="190"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+
+                <!-- edges: N to its candidate moves -->
+                <line
+                  x1="500"
+                  y1="190"
+                  x2="380"
+                  y2="340"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+                <line
+                  x1="500"
+                  y1="190"
+                  x2="500"
+                  y2="340"
+                  stroke="var(--muted)"
+                  stroke-width="2"
+                  stroke-dasharray="6 6"
+                />
+                <line
+                  x1="500"
+                  y1="190"
+                  x2="620"
+                  y2="340"
+                  stroke="var(--muted)"
+                  stroke-width="2"
+                  stroke-dasharray="6 6"
+                />
+
+                <!-- beta label on root->N edge -->
+                <rect x="392" y="93" width="66" height="22" fill="var(--bg)" />
+                <text
+                  x="425"
+                  y="109"
+                  text-anchor="middle"
+                  font-size="14"
+                  fill="currentColor"
+                >
+                  β = 4
+                </text>
+
+                <!-- root node -->
+                <circle
+                  cx="320"
+                  cy="50"
+                  r="26"
+                  fill="var(--bg)"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+                <text
+                  x="320"
+                  y="55"
+                  text-anchor="middle"
+                  font-size="14"
+                  fill="currentColor"
+                >
+                  R
+                </text>
+                <text
+                  x="320"
+                  y="15"
+                  text-anchor="middle"
+                  font-size="13"
+                  fill="var(--muted)"
+                >
+                  opponent to move (MIN)
+                </text>
+
+                <!-- left, already-searched subtree -->
+                <circle
+                  cx="140"
+                  cy="190"
+                  r="26"
+                  fill="var(--bg)"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+                <text
+                  x="140"
+                  y="195"
+                  text-anchor="middle"
+                  font-size="14"
+                  fill="currentColor"
+                >
+                  4
+                </text>
+                <text
+                  x="140"
+                  y="235"
+                  text-anchor="middle"
+                  font-size="12"
+                  fill="var(--muted)"
+                >
+                  already searched
+                </text>
+
+                <!-- N node -->
+                <circle
+                  cx="500"
+                  cy="190"
+                  r="26"
+                  fill="var(--bg)"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+                <text
+                  x="500"
+                  y="195"
+                  text-anchor="middle"
+                  font-size="14"
+                  fill="currentColor"
+                >
+                  N
+                </text>
+                <rect
+                  x="437"
+                  y="138"
+                  width="126"
+                  height="20"
+                  fill="var(--bg)"
+                />
+                <text
+                  x="500"
+                  y="152"
+                  text-anchor="middle"
+                  font-size="13"
+                  fill="var(--muted)"
+                >
+                  your move (MAX)
+                </text>
+
+                <!-- leaf 1: searched, triggers cutoff -->
+                <circle
+                  cx="380"
+                  cy="340"
+                  r="24"
+                  fill="var(--bg)"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+                <text
+                  x="380"
+                  y="345"
+                  text-anchor="middle"
+                  font-size="14"
+                  fill="currentColor"
+                >
+                  6
+                </text>
+                <text
+                  x="380"
+                  y="385"
+                  text-anchor="middle"
+                  font-size="12"
+                  fill="var(--muted)"
+                >
+                  6 &#8805; &#946; &#8594; cutoff
+                </text>
+
+                <!-- leaf 2: pruned -->
+                <circle
+                  cx="500"
+                  cy="340"
+                  r="24"
+                  fill="var(--bg)"
+                  stroke="var(--muted)"
+                  stroke-width="2"
+                  stroke-dasharray="4 4"
+                />
+                <text
+                  x="500"
+                  y="345"
+                  text-anchor="middle"
+                  font-size="14"
+                  fill="var(--muted)"
+                >
+                  ?
+                </text>
+                <text
+                  x="500"
+                  y="385"
+                  text-anchor="middle"
+                  font-size="12"
+                  fill="var(--muted)"
+                >
+                  pruned
+                </text>
+
+                <!-- leaf 3: pruned -->
+                <circle
+                  cx="620"
+                  cy="340"
+                  r="24"
+                  fill="var(--bg)"
+                  stroke="var(--muted)"
+                  stroke-width="2"
+                  stroke-dasharray="4 4"
+                />
+                <text
+                  x="620"
+                  y="345"
+                  text-anchor="middle"
+                  font-size="14"
+                  fill="var(--muted)"
+                >
+                  ?
+                </text>
+                <text
+                  x="620"
+                  y="385"
+                  text-anchor="middle"
+                  font-size="12"
+                  fill="var(--muted)"
+                >
+                  pruned
+                </text>
+              </svg>
+              <figcaption>
+                The opponent (R, a minimizing node) already has 4 locked in from
+                the left branch, so β&nbsp;=&nbsp;4 is handed down into N. The
+                very first move explored at N scores 6, already &#8805; β, so
+                the search breaks immediately: whatever the player gains, the
+                opponent effectively loses, so between letting the player score
+                4 on the left or 6 on the right, the opponent will always steer
+                into the branch that gives the player less &mdash; the left one.
+                N's other two candidate moves are never even generated for
+                scoring, since nothing they could score would change an
+                opponent's decision that's already made.
+              </figcaption>
+            </figure>
+            <p>
+              Another thing to consider when searching for the best move is draw
+              detection. A game is considered a draw under 2 conditions:
+            </p>
+            <ul>
+              <li>
+                the number of plies with no captures since start of position
+                till current ply exceeds threshold - the count of moves without
+                a capture gets incremented each time there is no capture, and if
+                the count exceeds the tolerable limit a score of zero gets
+                returned to indicate a draw. However, the count gets reset
+                whenever a capture is found and the whole process gets repeated
+                again until either a draw is found, a good move is found or time
+                runs out.
+              </li>
+              <li>
+                sequence of moves lead to a position getting encountered at
+                least twice since the start of the game - multiple move
+                sequences result in the same position been encountered at least
+                twice. This doesn't necessarily mean that a move was played more
+                than twice, but rather, multiple sequence of events led to same
+                resulting position, which is indicative of a draw.
+              </li>
+            </ul>
+            <p>
+              The final piece of the search algorithm is the
+              <a
+                href="https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search"
+                target="_blank"
+                >iterative deepening search</a
+              >. What this means is that the algorithm searches all nodes at
+              depth d, before proceeding to d+1, then d+2, ... d+n. It only
+              reports the result of a depth d if it was able to complete
+              searching at that level without interruption. Otherwise, it
+              returns the result from the previous, fully-completed iteration
+              (one depth shallower) since that was the last fully searched
+              depth. Finally, the maximum allowed depth is set to 64 as a means
+              of capping unbounded growth.
+            </p>
+          </div>
+          <div id="protocol">
+            <h3>Protocol</h3>
+            <p>
+              Now that the game components exist, the next thing on the list is
+              making them work together. This is handled by
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/protocol.h"
+                target="_blank"
+                >protocol.h</a
+              >/<a
+                href="https://github.com/KevinMwita7/draughts/blob/main/src/protocol.cpp"
+                target="_blank"
+                >protocol.cpp</a
+              >
+              an implementation of the,
+              <a
+                href="https://en.wikipedia.org/wiki/Universal_Chess_Interface"
+                target="_blank"
+                >Universal Chess Interface</a
+              >. Below are the commands used to run the game:
+            </p>
+            <ul>
+              <li>
+                quit/exit - stop searching and break the game loop, effectively
+                murking it.
+              </li>
+              <li>
+                ucinewgame - stop searching and reset game position, search
+                parameters and history to original state.
+              </li>
+              <li>
+                isready - just prints out readyok for now, but should
+                canonically sync game state.
+              </li>
+              <li>
+                setoption - used to change internal parameters of the game. This
+                engine just ignores it.
+              </li>
+              <li>
+                position - parses and creates a Position from the PDN string. If
+                the PDN string is followed by the moves subcommand, the included
+                moves get executed as well, with checks for draws being
+                conducted after each move.
+              </li>
+              <li>
+                move - executes the specified move and checks for a draw
+                afterwards i.e. 40 or more successive plies with no captures or
+                position appears at least thrice in game history.
+              </li>
+              <li>
+                stop - abandon searching for position but game stays alive. Not
+                to be confused with quit/exit.
+              </li>
+              <li>
+                go - informs engine to start the calculations. Allows the
+                subcommands depth, movetime and ponder. The depth subcommand set
+                the upper limit of how deep a search tree can grow, and ponder
+                instructs the engine that there is no search time limit, but the
+                depth is limited to 64 to avoid stack overflows. movetime is the
+                time limit set for a search. It gets applied immediately if the
+                ponder subcommand was not issued and applied after a hit if
+                search was in ponder mode.
+              </li>
+              <li>
+                ponderhit - issued if player does a predicted move. The entire
+                sequence of events is: the caller predicts an opponent's move,
+                sets the position to what the board would look like after that
+                move, and sends 'go ponder' command. As the opponent is
+                thinking, the search keeps running deeper and deeper on the
+                predicted position. Once the opponent makes their move and that
+                move was the predicted one, the caller issues the 'ponderhit'
+                command and the game continues searching but now with the time
+                limit, if any was specified. However, if the player doesn't play
+                the predicted move, the caller sends 'stop' (killing that
+                now-useless search), sets the position to the real resulting
+                board, and issues a fresh go with the real time budget, starting
+                from scratch, since the prediction was wrong.
+              </li>
+              <li>perft - see <a href="#perft-explainer">here</a>.</li>
+              <li>
+                moves - generates and prints moves for current position, but
+                doesn't execute them.
+              </li>
+              <li>d - prints the board snapshot.</li>
+              <li>
+                any other command falls to final conditional branch, which then
+                logs an error.
+              </li>
+            </ul>
+            <p>
+              The game is multithreaded when running a non-browser environment,
+              with the game loop executing in the main thread and the search
+              happening in the background thread. Naturally, this comes with the
+              concern of race conditions. The first affected area is the out
+              stream because two commands may try to write to the out stream at
+              the same time. To counter this, a mutex is introduced, and the
+              writing threads first have to acquire a lock on the mutex before
+              writing out. Decided to use
+              <a
+                href="https://en.cppreference.com/cpp/thread/lock_guard"
+                target="_blank"
+                >lock_guards</a
+              >
+              because they release resources automatically whenever they go out
+              of scope, significantly simplifying threads management.
+            </p>
+            <p>
+              The second area is signalling the search thread to stop a search.
+              It happens a whole lot throughout the code, therefore warranting
+              the creation of the stop_search helper function in protocol.cpp.
+              stop_search first sets the stop_flag_ atomic boolean to true,
+              signalling any running search to stop, then joins the search
+              thread if it's joinable (not detached/disposed), blocking until
+              the stale thread actually stops, and finally resets stop_flag_
+              back to false for the next search. This helper is called by
+              stop/quit/exit/ucinewgame/go, basically any command that needs the
+              searching thread stopped before doing its own thing. In the 'go'
+              command, <br />
+              <code>search_thread_ = std::thread(run_search)</code> spins up a
+              new thread running the run_search lambda and stores its handle in
+              search_thread_ for these future interactions. For a plain go, that
+              thread is joined immediately and handle_command blocks until
+              run_search finishes, so the caller sees bestmove before the next
+              command is read. The thread only keeps running past
+              handle_command's return during go ponder. run_search captures a
+              copy of the history and passes it to the search algorithm, making
+              search aware on any moves made earlier during the course of the
+              game.
+            </p>
+            <p>
+              Sidenote, peep the
+              <a
+                href="https://en.cppreference.com/cpp/atomic/memory_order"
+                target="_blank"
+                >memory_order_relaxed</a
+              >
+              argument passed when setting the stop_flag_ atomic variable. It
+              essentially means that no synchronization (no locks) is used when
+              updating the variable but atomicity is guaranteed (the operation
+              of setting a variable may seem as one at code level but CPU execs
+              it in multiple steps. Atomicity means all these steps either
+              succeed or none of them happen). Contrast this with
+              ponder_switch_ms_, used for ponderhit. That one is set with
+              memory_order_release on the main thread and read with
+              memory_order_acquire on the search thread. The difference is that
+              ponder_switch_ms_ carries a value (the real time budget) that the
+              search thread needs to actually use once it observes the switch,
+              not just a true/false signal. Release/acquire guarantees that
+              everything written on the main thread before the store,
+              pending_go_params_'s real time getting set in this case, is
+              visible to the search thread after it does the acquire-load.
+              Relaxed wouldn't give that guarantee.
+            </p>
+            <p>
+              However, when in a browser environment, the game runs in a single
+              thread due to JavaScript's
+              <a
+                href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model#job_queue_and_event_loop"
+                target="_blank"
+                >event loop</a
+              >. Therefore, the go command checks if the __EMSCRIPTEN__ macro is
+              defined, indicating that the code is running as
+              <a href="https://emscripten.org/" target="_blank">Web Assembly</a>
+              module. If so, run_search gets called without spawning a thread.
+            </p>
+          </div>
+          <div id="gui">
+            <h3>GUI</h3>
+            <p>
+              To allow human players to play, a graphical board is needed. For
+              this, the browser is a perfect medium because of HTML's
+              simplicity. C++ can run in a browser as a
+              <a href="https://webassembly.org/" target="_blank">WASM</a>
+              module, making its commands accessible to programs that want to
+              interface with it. This is where
+              <a href="https://emscripten.org/" target="_blank">emscripten</a>
+              comes into play. It's what will be used to compile the code into a
+              WASM runtime. Emscripten provides the option of providing a
+              <a
+                href="https://emscripten.org/docs/compiling/Deploying-Pages.html"
+                target="_blank"
+                >shell HTML</a
+              >
+              file to which the compiled WASM gets outputted. Since the project
+              uses <a href="https://cmake.org/" target="_blank">CMake</a> as its
+              build tool, the shell-file option was passed in the
+              <a
+                href="https://cmake.org/cmake/help/latest/command/target_link_options.html"
+                target="_blank"
+                >target_link_options</a
+              >
+              in the project's
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/CMakeLists.txt"
+                target="_blank"
+                >CMakeLists.txt</a
+              >. This means that whenever someone selects the
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/CMakePresets.json"
+                target="_blank"
+                >wasm-debug</a
+              >
+              preset and then builds the project, an HTML file gets generated
+              with the draughts engine attached as a WASM module. If using
+              Visual Studio, this is as easy as selecting WebAssembly Debug from
+              the configurations dropdown and running the project.
+            </p>
+            <img
+              class="screenshot"
+              src="vs-cmake-presets.png"
+              alt="Select configuration in Visual Studio"
+            />
+            <p>
+              Taking a closer look at the project's CMakeLists, you'll notice
+              the command option <br />
+              <code>"-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']"</code>. This
+              instructs emscripten to include
+              <a
+                href="https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#interacting-with-code-ccall-cwrap"
+                target="_blank"
+                >ccall</a
+              >
+              in the generated glue JS it substitutes at {{{ SCRIPT }}} in
+              shell.html, which shall then be used whenever the frontend (visual
+              component) wants to communicate with the backend (compiled C++
+              code).
+            </p>
+            <p>
+              Emscripten relies on a global module conveniently named
+              <a
+                href="https://emscripten.org/docs/api_reference/module.html"
+                target="_blank"
+                >Module</a
+              >, onto which <code>ccall</code> and any other glue properties are
+              merged during startup. Additionally, developers can override
+              certain properties of the Module to provide their own behaviour.
+              The only function overridden in the current program is the
+              <a
+                href="https://emscripten.org/docs/getting_started/FAQ.html#how-can-i-tell-when-the-page-is-fully-loaded-and-it-is-safe-to-call-compiled-functions"
+                target="_blank"
+                >onRuntimeInitialized</a
+              >, a callback summoned by Emscripten when the WASM runtime is
+              loaded and ready. In this scenario, onRuntimeInitialized calls
+              initGame(), which attaches the necessary event listeners to the
+              game's board. The project's shell file can be found
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/web/shell.html"
+                target="_blank"
+                >here</a
+              >.
+            </p>
+          </div>
+          <div id="synergy">
+            <h3>Synergy</h3>
+          </div>
+        </div>
+        <div id="glossary">
+          <h2>Glossary</h2>
+          <div id="types.h">
+            <h3>types.h</h3>
+            <p>
+              These are defined in
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/types.h"
+                target="_blank"
+                >types.h</a
+              >
+            </p>
+            <ul>
+              <li>
+                Square - an
+                <a
+                  href="https://en.cppreference.com/cpp/language/type_alias"
+                  target="_blank"
+                  >alias</a
+                >
+                of unsigned 8 bit integer
+              </li>
+              <li>
+                Bitboard - an alias of unsigned 32 bit integer. The board will
+                be represented by 32 bits despite a typical bitboard being made
+                up of 64. This is because the implementation only cares about
+                the valid squares.
+              </li>
+              <li>
+                SQ_NONE - a sentinel value used to represent invalid/absent
+                squares. There are 32 valid squares on the board, with indices
+                0-31 (not 1-32 because of zero-based indexing). Therefore 32 is
+                used to represent an invalid square since it's the next value
+                outside this range.
+              </li>
+              <li>
+                Color - an enum used to represent the piece colors (<code
+                  >0</code
+                >
+                for BLACK and <code>1</code> for WHITE). The
+                <i>type-specifier-seq</i> is set to uint8_t. Without this, the
+                compiler would pick whatever integer type fits the enumerators
+                (typically an int - 4 bytes). Any place color would have then be
+                stored would take up 4x the space it currently does.
+              </li>
+              <li>
+                Color operator~ - the ~ operator has to be overloaded for the
+                enum Color. This because Color is a
+                <a
+                  href="https://www.learncpp.com/cpp-tutorial/scoped-enumerations-enum-classes/"
+                  target="_blank"
+                  >scoped</a
+                >
+                enum and without this overload, the compiler would cast the
+                value to an int before applying the bitwise not operator. So
+                ~BLACK becomes <code>~static_cast&lt;int&gt;(0)</code> which is
+                <code>-1 (0xFFFFFFFF)</code>, not 1 and ~WHITE would be
+                <code>-2 (0xFFFFFFFE)</code>. Additionally, unscoped enums don't
+                implictly convert from int, so Color opponent = ~side wouldn't
+                compile without an explicit cast (the result is an int and would
+                haveve to be cast to an uint8_t before assigning to Color)
+              </li>
+              <li>
+                PieceKind - an enum used to represent the kind of piece with,
+                <code>0</code> representing MAN and <code>1</code> representing
+                KING. Its <i>type-specifier-seq</i> is also set to uint8_t so
+                that the piece kind takes up a single byte.
+              </li>
+              <li>
+                Piece - an enum representing the kinds of pieces; 0 for BLACK
+                man, 1 for BLACK king, 2 for WHITE man, 3 for WHITE king and 4
+                as the sentinel value for empty squares.
+              </li>
+              <li>
+                <code>make_piece</code> function takes in Color and PieceKind
+                and returns the Piece. If <code>0</code> is passed in as Color
+                and <code>0</code> as PieceKind, <code>0</code> &lt;&lt;
+                <code>1</code> is <code>0</code> then ORing the result with
+                PieceKind <code>0</code> results in <code>0</code>, a BLACK man
+                as per the Piece enum. If Color is <code>0</code> and the
+                PieceKind is <code>1</code>, <code>0</code> &lt;&lt;
+                <code>1</code> is <code>0</code> then ORing the result with
+                PieceKind <code>1</code> gives <code>1</code>, a BLACK king.
+                When Color is <code>1</code> and PieceKind is <code>0</code>,
+                <code>1</code> &lt;&lt; <code>1</code> is <code>0010</code> then
+                ORing the result with PieceKind <code>0</code> gives
+                <code>0010</code> which is equivalent to 2, a WHITE man
+                according to the Piece enum. Finally, if Color is
+                <code>1</code> and PieceKind is <code>1</code>,
+                <code>1</code> &lt;&lt; <code>1</code> results in
+                <code>0010</code>, ORing this with the PieceKind 1 gives
+                <code>0011</code> which is 3, a WHITE king according to the
+                Piece enum.
+              </li>
+              <li>
+                color_of - returns the color of a piece. It just right shifts
+                the bits by 1, effectively inverting the effect of make_piece.
+                Since make_piece builds a Piece as <br />
+                <code>(Color &lt;&lt; 1) | PieceKind</code>, the low bit holds
+                PieceKind and the upper bit(s) hold Color. Right-shifting by 1
+                discards that low PieceKind bit and recovers exactly the Color
+                value that was shifted in. A BLACK man is <code>0</code>,
+                shifting to the right by <code>1</code> gives <code>0</code>,
+                which corresponds to black in the Color enum. A BLACK king is
+                <code>0001</code>, shifting to the right by <code>1</code> gives
+                <code>0</code>, black in the Color enum. WHITE man is
+                <code>0010</code>, right shift by <code>1</code> gives
+                <code>1</code>, which is white in the Color enum. Finally, WHITE
+                king is <code>0011</code>, right shift by <code>1</code> gives
+                1, which is white in the Color enum.
+              </li>
+              <li>
+                piece_kind - given a Piece, returns the PieceKind (man/king). It
+                masks off the upper bit, since that's where make_piece OR'd in
+                the piece's upper Color bit, leaving only the lower PieceKind
+                bit. BLACK man <code>(0)</code> & <code>1</code> returns
+                <code>0</code>, which corresponds to man in the PieceKind enum.
+                BLACK king <code>(0001)</code> & <code>1</code> results in 1,
+                king in the PieceKind enum. WHITE man <code>(0010)</code> &
+                <code>1</code> results in man (<code>0</code> man in the
+                PieceKind enum) and WHITE king <code>(0011)</code> &
+                <code>1</code> gives <code>1</code>, a king according to the
+                PieceKind enum.
+              </li>
+              <li>
+                Move - a struct that holds information about a particular move.
+              </li>
+              <li>
+                The Scores are used by
+                <a href="https://en.wikipedia.org/wiki/Negamax" target="_blank"
+                  >negamax</a
+                >
+                to evaluate a position from the perspective of the side to move
+                (positive scores are good for current player, negative good for
+                opponent). SCORE_WIN/SCORE_LOSS = the side to move has a forced
+                win/loss, where forced means the search has proven the outcome
+                by exhaustively searching all lines to a terminal position
+                within the search tree, not a heuristic estimate. SCORE_DRAW =
+                <code>0</code>, fires when the game has stalled: either too many
+                moves without a capture/promotion, or the same position
+                recurring (repetition). SCORE_NONE specifically marks an aborted
+                search either due time/node limit hit or stop requested. It
+                tells the caller, "this result isn't trustworthy because the
+                search didn't finish". Finally, SCORE_INF is the initial
+                alpha-beta bound used before any real score has been found.
+              </li>
+            </ul>
+          </div>
+          <div id="bitboard.h">
+            <h3>bitboard.h</h3>
+            <p>
+              Defined
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/bitboard.h"
+                target="_blank"
+                >here</a
+              >.
+            </p>
+            <ul>
+              <li>
+                sq_bb - returns a bitboard with only the specified square
+                populated.
+              </li>
+              <li>
+                rank_bb - returns a bitboard with only the specified rank/row
+                populated.
+              </li>
+              <li>
+                shift_up_right - moves the pieces on a bitboard to the
+                diagonally upright square. For pieces on even rows, this entails
+                left shifting the bits by 4 e.g. <br />
+                <code>0x0000000F</code> &lt;&lt; 4 = <code>0x000000F0</code>,
+                the piece that was originally at square <code>0</code> is now at
+                square 4, one originally at 1 is now at square 5, one initially
+                at 2 is now at 6 and one that was at 3 is now at 7. For pieces
+                on odd rows, first get rid of the pieces at the furthest right
+                squares since they don't have a valid square to move to. This is
+                achieved by ~RIGHT_EDGE effectively turning all the bits at the
+                right edge off and all the other bits on, then ANDing the result
+                with the odd rows. The result is then finally shifted to the
+                left by 5 bits leading to the pieces moving diagonally up right.
+                For example, the bitboard <code>0x000000F0</code> &
+                <code>0x70707070</code> = <code>0x00000070</code> &lt;&lt; 5 =
+                <code>0x00000E00</code>
+              </li>
+              <li>
+                shift_up_left - moves the pieces to the diagonally up left
+                square. Similar masking logic as shift_up_right happens on the
+                left edges for pieces on even rows as they don't have a valid
+                destination. Then the squares are shifted to the left by 3 to
+                land on the diagonally up left squares. Finally, squares on odd
+                rows are left shifted by 4 with no masking since they'll land on
+                valid squares.
+              </li>
+              <li>
+                shift_down_right - moves the pieces to the diagonally bottom
+                right square. Pieces on odd rows get masked since the pieces at
+                right edge have no valid destination. The result is then right
+                shifted by 3 bits. Pieces on even rows are simply right shifted
+                by 4 since they'll all land on a valid square.
+              </li>
+              <li>
+                shift_down_left - moves the pieces to the diagonally bottom left
+                square. Pieces on odd rows get shifted to the right by 4 bits
+                with no masking as they'll all land on valid squares. Pieces on
+                even rows are masked first since the pieces at the left edge
+                have no valid landing square. Result is then shifted to the
+                right by 5 bits to get final destinations.
+              </li>
+              <li>
+                pop_lsb - gets the index first set bit on a bitboard. For
+                example: bb = <code>10001100</code>, lowest set bit is at
+                position 2. <code> bb &= bb - 1</code> clears it:
+                <code>10001100 & 10001011 = 10001000</code> and 2 returned.
+              </li>
+            </ul>
+          </div>
+          <div id="draw.h">
+            <h3>draw.h</h3>
+            <p>
+              Defined
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/draw.h"
+                target="_blank"
+                >here</a
+              >.
+            </p>
+            <ul>
+              <li>
+                is_reversible_draw - since last capture, the number of plies
+                exceed the allowed no-capture threshold. This is an indication
+                of a draw.
+              </li>
+              <li>
+                count_occurrences - counts the number of times the position hash
+                appears in the search history. A position appearing repeatedly
+                indicates a draw.
+              </li>
+            </ul>
+          </div>
+          <div id="eval_linear">
+            <h3>eval_linear</h3>
+            <p>
+              Defined
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/eval_linear.h"
+                target="_blank"
+                >here</a
+              >
+              and implemented in its cpp companion.
+            </p>
+            <ul>
+              <li>
+                extract_features - computes a fixed set of 16 numeric properties
+                of a position (see comments in the header file), always oriented
+                from side_to_move's perspective, and writes them into
+                <code>out[0..15]</code>.
+              </li>
+              <li>
+                evaluate - gets the dot product of weights and features to
+                produce the score that helps determine how a player is doing.
+              </li>
+            </ul>
+          </div>
+          <div id="eval_material">
+            <h3>eval_material</h3>
+            <p>
+              Defined
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/include/draughts/eval_material.h"
+                target="_blank"
+                >here</a
+              >
+              and implemented in eval_material.cpp.
+            </p>
+            <ul>
+              <li>
+                evaluate - multiplies the difference between between current
+                player's men and opponent's men with a constant value. It then
+                does the same for kings and sums both the scores to get a feel
+                of how the player is doing. It doesn't take into account any
+                factors other than piece counts. It was the initial scoring
+                function used before eval_linear. If interested, you could
+                replace eval_linear with it, just to see how it fairs.
+              </li>
+            </ul>
+          </div>
+        </div>
       </article>
     </main>
 
