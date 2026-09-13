@@ -19,13 +19,13 @@ Personal site and blog for Kevin Babu.
 - Basketball — Bulls fan and considers Jordan to be the GOAT. Additionally, no longer hates LeBron.
 - Shout out to [AriAtHome](https://www.youtube.com/@ariathome) — his journey is inspiring and is the only streamer Kev watches regularly.
 - Video games — currently playing Control. Favorites: DOOM (1993), God of War (Norse saga), and RDR2.
-- Favourite Movies — favorites are Spider-Man: Into the Spider-Verse and Across the Spider-Verse.
-- Thinks about situations that'll never happen.
+- Favourite Movies — Spider-Man: Into the Spider-Verse and Across the Spider-Verse.
+- Thinking about situations that'll never happen.
 
 **What fascinates Kevin?**
 
 - Nature — it's a miracle it exists at all.
-- Space — the vastness of it all is oddly comforting, helps him not take everything so seriously.
+- Space — the vastness of it all is oddly comforting, helps him not to take everything so seriously.
 
 **What's Kevin's dream?**
 
