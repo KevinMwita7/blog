@@ -1382,6 +1382,15 @@
                 >here</a
               >.
             </p>
+            <p>
+              The generated HTML file can't just be double-clicked and opened
+              directly in a browser as a <code>file://</code> URL. Browsers
+              block WASM's fetch/instantiation (and module scripts in general)
+              under the <code>file://</code> scheme for security reasons. It
+              needs to be served over HTTP instead, which any simple local
+              webserver can do, for example, running
+              <code>python -m http.server 8080</code> in the output directory.
+            </p>
           </div>
           <div id="synergy">
             <h3>Synergy</h3>
