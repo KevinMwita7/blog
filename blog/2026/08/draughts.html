@@ -167,7 +167,7 @@
                 <code>0000 0000 0000 0000 0000 1111 1111 1111</code> or
                 <code>0x00000FFF</code>: all black men are at rank 1, 2 and 3 at
                 the start of the game
-                <table class="codebox" border="1">
+                <table class="codebox">
                   <tbody>
                     <tr>
                       <td>
@@ -191,7 +191,7 @@
                 <code>1111 1111 1111 0000 0000 0000 0000 0000</code> or
                 <code>0xFFF00000</code>: all white men are at rank 8, 7 and 6 at
                 the start of game
-                <table class="codebox" border="1">
+                <table class="codebox">
                   <tbody>
                     <tr>
                       <td>
@@ -214,7 +214,7 @@
                 Both Kings:
                 <code>0000 0000 0000 0000 0000 0000 0000 0000</code>: no kings
                 at start of game
-                <table class="codebox" border="1">
+                <table class="codebox">
                   <tbody>
                     <tr>
                       <td>
@@ -1296,7 +1296,7 @@
             <p>
               To allow human players to play, a graphical board is needed. For
               this, the browser is a perfect medium because of HTML's
-              simplicity. C++ can run in a browser as a
+              simplicity. A C++ program can run in a browser as a
               <a href="https://webassembly.org/" target="_blank">WASM</a>
               module, making its commands accessible to programs that want to
               interface with it. This is where
@@ -1330,7 +1330,13 @@
               preset and then builds the project, an HTML file gets generated
               with the draughts engine attached as a WASM module. If using
               Visual Studio, this is as easy as selecting WebAssembly Debug from
-              the configurations dropdown and running the project.
+              the configurations dropdown and running the project. To install
+              emscripten, follow the instructions from the project's
+              <a
+                href="https://emscripten.org/docs/getting_started/downloads.html"
+                target="_blank"
+                >website</a
+              >.
             </p>
             <img
               class="screenshot"
@@ -1379,6 +1385,138 @@
           </div>
           <div id="synergy">
             <h3>Synergy</h3>
+            <p>
+              Finally, it's time to tie everything together. This is done in
+              <a
+                href="https://github.com/KevinMwita7/draughts/blob/main/src/draughts.cpp"
+                target="_blank"
+                >draughts.cpp</a
+              >. For non-browser environments, it's straightforward:
+            </p>
+            <ul>
+              <li>initialize the zobrist keys.</li>
+              <li>
+                create a LinearEval and pass it onto TextProtocol for use when
+                searching for moves.
+              </li>
+              <li>start the engine.</li>
+            </ul>
+            <p>
+              For browser environments, however, a bridge between the browser
+              and the C++ code needs to be created:
+            </p>
+            <table class="codebox">
+              <tbody>
+                <tr>
+                  <td>
+                    <pre>
+extern "C" {
+EMSCRIPTEN_KEEPALIVE
+const char* dr_command(const char* line) {
+  static const bool zobrist_ready = (draughts::zobrist::init(), true);
+  (void)zobrist_ready;
+  static draughts::LinearEval eval;
+  static draughts::TextProtocol protocol(eval);
+  static std::string response;
+
+  std::ostringstream oss;
+  protocol.handle_command(line, oss);
+  response = oss.str();
+  return response.c_str();
+}
+
+}
+#endif
+                    </pre>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              The <code>extern "C"</code> directive instructs the C++ compiler
+              to not mangle the function names. This is not usually a problem in
+              C code since all function names are unique (no overloading).
+              However, function overloading is possible in C++, and the compiler
+              needs to give the functions a unique name so that the linker can
+              differentiate them. This would have led to dr_command being
+              compiled to a different name, and ccall wouldn't have been able to
+              find it in the WASM runtime.
+            </p>
+            <p>
+              The next important piece is the
+              <a
+                href="https://emscripten.org/docs/api_reference/emscripten.h.html#compiling"
+                target="_blank"
+                >EMSCRIPTEN_KEEPALIVE</a
+              >
+              macro. Emscripten does dead code elimination and since the
+              dr_command is only called by <code>ccall</code> from within the JS
+              glue code, and nowhere in the C++ code, the compiler would've
+              marked it as dead code, consequently excluding it.
+              EMSCRIPTEN_KEEPALIVE prevents this.
+            </p>
+            <p>
+              <code
+                >static const bool zobrist_ready = (draughts::zobrist::init(),
+                true);</code
+              >
+              exploits the fact that a function-local static variable's
+              initializer runs exactly once, no matter how many times the
+              function gets invoked afterwards, in a thread-safe way. This is
+              referred to as
+              <a
+                href="https://blog.mbedded.ninja/programming/languages/c-plus-plus/magic-statics/"
+                target="_blank"
+                >magic statics</a
+              >. But there's a problem in that
+              <code>zobrist::init</code> returns nothing. No need to worry
+              though, C++ has the concept of
+              <a
+                href="https://www.learncpp.com/cpp-tutorial/the-comma-operator/"
+                target="_blank"
+                >comma operators</a
+              >, in our case <code> (draughts::zobrist::init(), true)</code>,
+              that will help out. Comma operator executes operations LTR,
+              discarding the results of all expressions but the rightmost one.
+              Therefore, true will end up being returned and stored in
+              <code>zobrist_ready</code> in this case. Then,
+              <code>zobrist_ready</code>
+              gets cast to void to trick the compiler into thinking that
+              <code>zobrist_ready</code> has been used, thus silencing the
+              unused variables warning that would've been raised. The rest of
+              the code is similar to the non-browser variant:
+            </p>
+            <ul>
+              <li>
+                initialize a TextProtocol with a LinearEval as its evaluator.
+              </li>
+              <li>
+                create an
+                <a
+                  href="https://cplusplus.com/reference/sstream/ostringstream/"
+                  target="_blank"
+                  >output string stream</a
+                >
+                for storing the result from executing the command.
+              </li>
+              <li>
+                run handle_command, passing to it the command from the frontend
+                and the output stream.
+              </li>
+              <li>
+                get the underlying string from the output stream and return a
+                <a
+                  href="https://www.w3schools.com/c/c_strings.php"
+                  target="_blank"
+                  >C-string/null-terminated-string</a
+                >, which ccall will then convert to a JavaScript string using
+                <a
+                  href="https://emscripten.org/docs/api_reference/preamble.js.html#UTF8ToString"
+                  target="_blank"
+                  >UTF8ToString</a
+                >.
+              </li>
+            </ul>
           </div>
         </div>
         <div id="glossary">
