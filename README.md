@@ -1,18 +1,32 @@
 # kevin.babu
 
-Static site. Plain HTML + one shared `style.css`. No JS, no build step, no templating — pages are hand-edited and self-contained.
+Personal site and blog for Kevin Babu.
 
-## Adding a blog post
+## FAQ
 
-1. Create `blog/YYYY/MM/slug.html` (copy `blog/2026/08/hello-world.html` as a starting point).
-2. Fix the relative paths to `style.css`, home, and blog index (three `../../../` levels deep from a post).
-3. Add a line for it in `blog/index.html`, under the right year (`h2`) and month (`h3`), newest first.
+**What's the design inspiration?**
 
-## Structure
+[bettermotherfuckingwebsite.com](http://bettermotherfuckingwebsite.com/): readable text, no clutter.
 
-```
-index.html          homepage
-style.css            shared styles for every page
-blog/index.html      archive, grouped by year > month
-blog/YYYY/MM/*.html  individual posts
-```
+**Who does Kevin look up to as a programmer?**
+
+- John Carmack — self-taught, and went on to build DOOM (1993), arguably the most influential video game.
+- Robert Sedgewick — whose books helped Kevin understand algorithms.
+- The uncredited millions — people like Tim Berners-Lee (the Web), Nasir Ahmed (JPEG), and Bjarne Stroustrup (C++), who gave the world inventions for free and that most people have never heard of.
+
+**What about outside programming?**
+
+- Basketball — Bulls fan and considers Jordan to be the GOAT. Additionally, no longer hates LeBron.
+- Shout out to [AriAtHome](https://www.youtube.com/@ariathome) — his journey is inspiring and is the only streamer Kev watches regularly.
+- Video games — currently playing Control. Favorites: DOOM (1993), God of War (Norse saga), and RDR2.
+- Favourite Movies — favorites are Spider-Man: Into the Spider-Verse and Across the Spider-Verse.
+- Thinks about situations that'll never happen.
+
+**What fascinates Kevin?**
+
+- Nature — it's a miracle it exists at all.
+- Space — the vastness of it all is oddly comforting, helps him not take everything so seriously.
+
+**What's Kevin's dream?**
+
+- To write a program that helps millions. Not sure what it is yet, but open to ideas.
