@@ -18,7 +18,7 @@ Personal site and blog for Kevin Babu.
 
 - Basketball — Bulls fan and considers Jordan to be the GOAT. Additionally, no longer hates LeBron.
 - Shout out to [AriAtHome](https://www.youtube.com/@ariathome) — his journey is inspiring and is the only streamer Kev watches regularly.
-- Video games — currently playing Control. Favorites: DOOM (1993), God of War (Norse saga), and RDR2.
+- Video games — currently playing Control. Favorites: DOOM (1993), God of War (Norse saga), and RDR2. Prefers single player games.
 - Favourite Movies — Spider-Man: Into the Spider-Verse and Across the Spider-Verse.
 - Thinking about situations that'll never happen.
 
